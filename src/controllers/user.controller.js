@@ -11,12 +11,11 @@ const registerUser = asyncHandler(async (req, res) => {
   // check for images, check for avatar
   // upload them to cloudinary, avatar
   // create user object - create entry in DB
-  // remove passwprd and refresh token field from response
+  // remove password and refresh token field from response
   // check for user creation
   // return response
 
   const { fullName, email, userName, password } = req.body;
-  console.log(email);
 
   if (
     [fullName, email, userName, password].some((data) => data?.trim() === "")
@@ -33,7 +32,15 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const avatarLocalPath = req.files?.avatar[0]?.path;
-  const coverImageLocalPath = req.files?.coverImage[0]?.path;
+  // const coverImageLocalPath = req.files?.coverImage[0]?.path;
+
+  let coverImageLocalPath;
+  if (
+    req.files &&
+    Array.isArray(req.files.coverImage) &&
+    req.files.coverImage.length > 0
+  )
+    coverImageLocalPath = req.files.coverImage[0].path;
 
   if (!avatarLocalPath) throw new ApiError(400, "Avatar file is required");
 
