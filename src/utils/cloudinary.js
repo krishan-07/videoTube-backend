@@ -16,7 +16,7 @@ const uploadOnCloudinary = async (localFilePath) => {
       resource_type: "auto",
     });
     // file has been uploaded successfully
-    // console.log("file has been uploaded succesfully", response.url);
+    // console.log("file has been uploaded succesfully", response);
     fs.unlinkSync(localFilePath);
     return response;
   } catch (error) {
@@ -25,4 +25,24 @@ const uploadOnCloudinary = async (localFilePath) => {
   }
 };
 
-export { uploadOnCloudinary };
+const extractPublicIdFromUrl = (url) => {
+  const parts = url.split("/");
+  const uploadIndex = parts.indexOf("upload");
+  const publicIdWithExtension = parts.slice(uploadIndex + 2)[0];
+  const publicId = publicIdWithExtension.split(".")[0];
+
+  return publicId;
+};
+
+const removeFromCloudinary = async (publicId) => {
+  try {
+    if (!publicId) return null;
+
+    const response = await cloudinary.uploader.destroy(publicId);
+
+    return response;
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+export { uploadOnCloudinary, extractPublicIdFromUrl, removeFromCloudinary };

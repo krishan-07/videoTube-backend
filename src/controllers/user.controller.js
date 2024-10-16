@@ -1,7 +1,11 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import {
+  uploadOnCloudinary,
+  removeFromCloudinary,
+  extractPublicIdFromUrl,
+} from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
@@ -168,7 +172,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const incomingRefreshToken =
-    req.cookies.refreshToken || req.body.requestToken;
+    req.cookies.refreshToken || req.body.refreshToken;
 
   if (!incomingRefreshToken) throw new ApiError(401, "unauthorized request");
 
@@ -178,9 +182,12 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       process.env.REFRESH_TOKEN_SECRET
     );
 
+    console.log(decodedToken);
     const user = await User.findById(decodedToken?._id);
 
     if (!user) throw new ApiError(401, "invalid refresh token");
+
+    console.log(user);
 
     if (user?.refreshToken !== incomingRefreshToken)
       throw new ApiError(401, "Refresh token is expired or used");
@@ -255,8 +262,15 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
   const avatarLocalPath = req.file?.path;
+  const avatarUrl = await User.findById(req.user?._id).select("avatar");
 
   if (!avatarLocalPath) throw new ApiError(400, "Avatar file is missing");
+
+  const response = await removeFromCloudinary(
+    extractPublicIdFromUrl(avatarUrl.avatar)
+  );
+  if (response.result !== "ok")
+    throw new ApiError(400, "Error while removing the old file");
 
   const avatar = await uploadOnCloudinary(avatarLocalPath);
 
@@ -279,9 +293,16 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
   const coverImageLocalPath = req.file?.path;
+  const coverImageUrl = await User.findById(req.user?._id);
 
   if (!coverImageLocalPath)
     throw new ApiError(400, "cover image file is missing");
+
+  const response = await removeFromCloudinary(
+    extractPublicIdFromUrl(coverImageUrl.avatar)
+  );
+  if (response.result !== "ok")
+    throw new ApiError(400, "Error while removing the old file");
 
   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
@@ -305,7 +326,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
   const { userName } = req.params;
-
+  console.log(req.params);
   if (!userName?.trim()) throw new ApiError(400, "userName is missing");
 
   const channel = await User.aggregate([
@@ -364,9 +385,9 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
   if (!channel?.length) throw new ApiError(404, "channel does not exist");
 
-  return res.status.json(
-    new ApiResponse(200, channel[0], "User channel fetched succesfully")
-  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, channel[0], "User channel fetched succesfully"));
 });
 
 const getWatchHistory = asyncHandler(async (req, res) => {
@@ -414,8 +435,11 @@ const getWatchHistory = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(
-      new ApiResponse(200, user[0].watchHistory),
-      "watched history fetched succesfully"
+      new ApiResponse(
+        200,
+        user[0].watchHistory,
+        "watched history fetched succesfully"
+      )
     );
 });
 
