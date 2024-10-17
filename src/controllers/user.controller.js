@@ -326,7 +326,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
   const { userName } = req.params;
-  console.log(req.params);
+
   if (!userName?.trim()) throw new ApiError(400, "userName is missing");
 
   const channel = await User.aggregate([
@@ -423,7 +423,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
           },
           {
             $addFields: {
-              ownner: {
+              owner: {
                 $first: "$owner",
               },
             },
