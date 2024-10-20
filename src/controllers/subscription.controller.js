@@ -10,6 +10,9 @@ const toggleSubscription = asyncHandler(async (req, res) => {
   if (!channelId || !isValidObjectId(channelId))
     throw new ApiError(400, "Invalid channel Id");
 
+  if (channelId.toString() === req.user?._id.toString())
+    throw new ApiError(400, "Cannot subscribe to own channel");
+
   const channel = await Subscription.findOne({
     $and: [{ subscriber: req.user?._id }, { channel: channelId }],
   });
@@ -20,6 +23,10 @@ const toggleSubscription = asyncHandler(async (req, res) => {
     );
     if (!removeSubscription)
       throw new ApiError(500, "Error while unsubscribing the channel");
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Subscription removed successfully"));
   } else {
     const addSubscription = await Subscription.create({
       subscriber: req.user?._id,
@@ -27,11 +34,11 @@ const toggleSubscription = asyncHandler(async (req, res) => {
     });
     if (!addSubscription)
       throw new ApiError(500, "Error while sbscribing the channel");
-  }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, {}, "Subscription toggled successfully"));
+    return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Subscription added successfully"));
+  }
 });
 
 const getUserChannelSubscriber = asyncHandler(async (req, res) => {
@@ -40,7 +47,7 @@ const getUserChannelSubscriber = asyncHandler(async (req, res) => {
   if (!channelId || !isValidObjectId(channelId))
     throw new ApiError(400, "Invalid channel Id");
 
-  const subscribers = Subscription.aggregate([
+  const subscribers = await Subscription.aggregate([
     {
       $match: {
         channel: new mongoose.Types.ObjectId(channelId),
@@ -49,45 +56,65 @@ const getUserChannelSubscriber = asyncHandler(async (req, res) => {
     {
       $lookup: {
         from: "users",
+        localField: "channel",
+        foreignField: "_id",
+        as: "owner",
+        pipeline: [
+          {
+            $project: {
+              fullName: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $unwind: "$owner",
+    },
+    {
+      $lookup: {
+        from: "users",
         localField: "subscriber",
         foreignField: "_id",
         as: "subscribers",
-      },
-    },
-    {
-      $addFields: {
-        subscriber: {
-          $first: "$subscribers",
-        },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        subscribers: { $push: "$subscribers" },
-        totalSubscribers: { $sum: 1 },
+        pipeline: [
+          {
+            $project: {
+              fullName: 1,
+              userName: 1,
+              avatar: 1,
+            },
+          },
+        ],
       },
     },
     {
       $project: {
         _id: 0,
-        subscribers: {
-          _id: 1,
-          fullName: 1,
-          userName: 1,
-          avatar: 1,
-        },
-        subscribersCount: "$totalSubscribers",
+        owner: 1,
+        subscribers: 1,
+        subscribersCount: { $size: "$subscribers" },
       },
     },
   ]);
 
   if (!subscribers) throw new ApiError(404, "No subscribers found");
 
+  if (subscribers.length === 0)
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { subscribersCount: 0 },
+          "Subscribers fetched successfully"
+        )
+      );
+
   return res
     .status(200)
     .json(
-      new ApiResponse(200, subscribers, "Subscribers fetched successfully")
+      new ApiResponse(200, subscribers[0], "Subscribers fetched successfully")
     );
 });
 
@@ -128,7 +155,7 @@ const getSubscribedChannel = asyncHandler(async (req, res) => {
                   if: {
                     $in: [
                       new mongoose.Types.ObjectId(subscriberId),
-                      "$subscibers.subscriber",
+                      "$subscribers.subscriber",
                     ],
                   },
                   then: true,
@@ -167,12 +194,23 @@ const getSubscribedChannel = asyncHandler(async (req, res) => {
 
   if (!subscribedChannel) throw new ApiError(404, "No channels found");
 
+  if (subscribedChannel.length === 0)
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { subscribedChannel: 0 },
+          "Channel Subscribed fetched successfully"
+        )
+      );
+
   return res
     .status(200)
     .json(
       new ApiResponse(
         200,
-        subscribedChannel,
+        subscribedChannel[0],
         "Channel Subscribed fetched successfully"
       )
     );
