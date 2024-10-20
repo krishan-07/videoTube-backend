@@ -6,10 +6,10 @@ import { Tweet } from "../models/tweet.model.js";
 import { User } from "../models/user.model.js";
 
 const createTweet = asyncHandler(async (req, res) => {
-  const content = req.body;
+  const { content } = req.body;
 
   if (!content || content.trim() === "")
-    throw ApiError(400, "Tweet content is required");
+    throw new ApiError(400, "Tweet content is required");
 
   const tweet = await Tweet.create({
     owner: req.user?._id,
@@ -124,10 +124,10 @@ const updateTweet = asyncHandler(async (req, res) => {
   const { tweetId } = req.params;
 
   if (!tweetId || !isValidObjectId(tweetId))
-    throw new ApiError(400, "tweet id is invalid");
+    throw new ApiError(400, "Tweet id is invalid");
 
   if (!content || content.trim() === "")
-    throw ApiError(400, "Tweet content is required");
+    throw new ApiError(400, "Tweet content is required");
 
   const tweet = await Tweet.findById(tweetId);
   if (!tweet) throw new ApiError(404, "tweet not found");
