@@ -91,7 +91,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
   if (!videoId || !isValidObjectId(videoId))
     throw new ApiError(400, "Invalid video id");
 
-  const comments = Comment.aggregate([
+  const comments = await Comment.aggregate([
     {
       $match: {
         video: new mongoose.Types.ObjectId(videoId),
@@ -169,9 +169,16 @@ const getVideoComments = asyncHandler(async (req, res) => {
 
   if (!comments) throw ApiError(400, "Error while getting comments");
 
+  if (comments.length === 0)
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, { comments: 0 }, "Comments fetched successfully")
+      );
+
   return res
     .status(200)
-    .json(new ApiResponse(200, comments, "Comments fetched successfully"));
+    .json(new ApiResponse(200, comments[0], "Comments fetched successfully"));
 });
 
 export { addComment, updateComment, deleteComment, getVideoComments };
