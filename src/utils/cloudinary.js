@@ -34,15 +34,28 @@ const extractPublicIdFromUrl = (url) => {
   return publicId;
 };
 
-const removeFromCloudinary = async (publicId) => {
+const removeFromCloudinary = async (publicId, resourceType = "image") => {
   try {
     if (!publicId) return null;
 
-    const response = await cloudinary.uploader.destroy(publicId);
+    const response = await cloudinary.uploader.destroy(publicId, {
+      resource_type: resourceType,
+    });
 
     return response;
   } catch (error) {
     throw new Error(error.message);
   }
 };
-export { uploadOnCloudinary, extractPublicIdFromUrl, removeFromCloudinary };
+
+const removeLocalFile = (file1, file2) => {
+  if (file1) fs.unlinkSync(file1);
+  if (file2) fs.unlinkSync(file2);
+};
+
+export {
+  uploadOnCloudinary,
+  extractPublicIdFromUrl,
+  removeFromCloudinary,
+  removeLocalFile,
+};
