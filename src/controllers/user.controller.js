@@ -52,7 +52,7 @@ const registerUser = asyncHandler(async (req, res) => {
   });
 
   if (existedUser) {
-    throw new ApiError(409, "User with userName or email already exists");
+    throw new ApiError(400, "User with userName or email already exists");
   }
 
   const avatarLocalPath = req.files?.avatar[0]?.path;
@@ -91,7 +91,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   return res
     .status(201)
-    .json(new ApiResponse(200, createdUser, "User registered sucessfully"));
+    .json(new ApiResponse(201, createdUser, "User registered sucessfully"));
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -264,17 +264,19 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   const avatarLocalPath = req.file?.path;
   const avatarUrl = await User.findById(req.user?._id).select("avatar");
 
+  if (!avatarUrl) throw new ApiError(404, "User not found");
   if (!avatarLocalPath) throw new ApiError(400, "Avatar file is missing");
-
-  const response = await removeFromCloudinary(
-    extractPublicIdFromUrl(avatarUrl.avatar)
-  );
-  if (response.result !== "ok")
-    throw new ApiError(400, "Error while removing the old file");
 
   const avatar = await uploadOnCloudinary(avatarLocalPath);
 
   if (!avatar.url) throw new ApiError(400, "Error while uploading on avatar");
+  else {
+    const response = await removeFromCloudinary(
+      extractPublicIdFromUrl(avatarUrl.avatar)
+    );
+    if (response.result !== "ok")
+      throw new ApiError(400, "Error while removing the old file");
+  }
 
   const user = await User.findByIdAndUpdate(
     req.user?._id,
@@ -295,19 +297,21 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
   const coverImageLocalPath = req.file?.path;
   const coverImageUrl = await User.findById(req.user?._id);
 
+  if (!coverImageUrl) throw new ApiError(404, "User not found");
   if (!coverImageLocalPath)
     throw new ApiError(400, "cover image file is missing");
-
-  const response = await removeFromCloudinary(
-    extractPublicIdFromUrl(coverImageUrl.avatar)
-  );
-  if (response.result !== "ok")
-    throw new ApiError(400, "Error while removing the old file");
 
   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
   if (!coverImage.url)
     throw new ApiError(400, "Error while uploading on cover Image");
+  else {
+    const response = await removeFromCloudinary(
+      extractPublicIdFromUrl(coverImageUrl.coverImage)
+    );
+    if (response.result !== "ok")
+      throw new ApiError(400, "Error while removing the old file");
+  }
 
   const user = await User.findByIdAndUpdate(
     req.user?._id,
