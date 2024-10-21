@@ -13,7 +13,7 @@ const createPlaylist = asyncHandler(async (req, res) => {
 
   const playlist = await Playlist.create({
     name,
-    description: description || "",
+    description: description || null,
     owner: req.user?._id,
   });
 
@@ -25,7 +25,7 @@ const createPlaylist = asyncHandler(async (req, res) => {
 });
 
 const getUserPlaylists = asyncHandler(async (req, res) => {
-  const { userId } = req.parmas;
+  const { userId } = req.params;
 
   if (!userId || !isValidObjectId(userId))
     throw new ApiError(400, "Invalid userId");
@@ -87,9 +87,6 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
         totalVideos: {
           $size: "$videos",
         },
-        totalview: {
-          $sum: "$videos.views",
-        },
         thumbnail: {
           $first: "$videos.thumbnail",
         },
@@ -107,10 +104,13 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
 });
 
 const getPlaylistById = asyncHandler(async (req, res) => {
-  const { playlistId } = req.parmas;
+  const { playlistId } = req.params;
 
   if (!playlistId || !isValidObjectId(playlistId))
     throw new ApiError(400, "Invalid PlaylistId");
+
+  const isPlaylist = await Playlist.findById(playlistId);
+  if (!isPlaylist) throw new ApiError(404, "No playlist found ");
 
   const playlist = await Playlist.aggregate([
     {
@@ -124,13 +124,15 @@ const getPlaylistById = asyncHandler(async (req, res) => {
         localField: "owner",
         foreignField: "_id",
         as: "owner",
-        pipeline: {
-          $project: {
-            fullName: 1,
-            userName: 1,
-            avatar: 1,
+        pipeline: [
+          {
+            $project: {
+              fullName: 1,
+              userName: 1,
+              avatar: 1,
+            },
           },
-        },
+        ],
       },
     },
     {
@@ -188,11 +190,10 @@ const getPlaylistById = asyncHandler(async (req, res) => {
       },
     },
   ]);
-  if (!playlist) throw new ApiError(404, "No playlist found ");
 
   return res
     .status(200)
-    .json(new ApiResponse(200, playlist, "playlist fetched successfully"));
+    .json(new ApiResponse(200, playlist[0], "playlist fetched successfully"));
 });
 
 const addVideoToPlaylist = asyncHandler(async (req, res) => {
@@ -270,9 +271,7 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
   const updatedplaylist = await Playlist.findByIdAndUpdate(
     playlistId,
     {
-      $pull: {
-        videos: { _id: videoId },
-      },
+      $pull: { videos: videoId },
     },
     {
       new: true,

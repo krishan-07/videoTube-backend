@@ -8,9 +8,9 @@ const playlistSchema = new Schema(
     },
     description: {
       type: String,
-      required: true,
+      required: false,
     },
-    video: [
+    videos: [
       {
         type: Schema.Types.ObjectId,
         ref: "Video",
