@@ -186,12 +186,9 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       process.env.REFRESH_TOKEN_SECRET
     );
 
-    console.log(decodedToken);
     const user = await User.findById(decodedToken?._id);
 
     if (!user) throw new ApiError(401, "invalid refresh token");
-
-    console.log(user);
 
     if (user?.refreshToken !== incomingRefreshToken)
       throw new ApiError(401, "Refresh token is expired or used");
@@ -201,17 +198,19 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       secure: true,
     };
 
-    const { accessToken, newRefreshToken } =
-      await generateAccessAndRefreshTokens(user._id);
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+      user._id
+    );
+    console.log(refreshToken);
 
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
+      .cookie("refreshToken", refreshToken, options)
       .json(
         new ApiResponse(
           200,
-          { accessToken, newRefreshToken },
+          { accessToken, refreshToken },
           "Access Token refreshed"
         )
       );
@@ -399,7 +398,6 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       },
     },
   ]);
-  console.log(channel);
 
   if (!channel?.length) throw new ApiError(404, "channel does not exist");
 

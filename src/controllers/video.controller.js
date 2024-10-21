@@ -13,6 +13,7 @@ import mongoose, { isValidObjectId } from "mongoose";
 
 const publishVideo = asyncHandler(async (req, res) => {
   const { title, description } = req.body;
+
   const videoLocalPath = req.files?.videoFile[0]?.path;
   const thumbnailLocalPath = req.files?.thumbnail[0]?.path;
 
